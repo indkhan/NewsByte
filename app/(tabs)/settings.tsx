@@ -1,14 +1,57 @@
-import React from 'react';
-import { View, Text, StyleSheet, Switch, ScrollView, Pressable } from 'react-native';
-import { Bell, Moon, Globe, Share2, Info, LogOut, User } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Switch, ScrollView, Pressable, Modal, TouchableOpacity } from 'react-native';
+import { Bell, Moon, Globe, Share2, Info, LogOut, User, ChevronDown, ChevronUp, Edit } from 'lucide-react-native';
 import { useTheme } from '@/app/context/ThemeContext';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth, NewsCategory, Language } from '@/app/context/AuthContext';
 import { useRouter } from 'expo-router';
+
+// News category options with labels
+const CATEGORIES: { id: NewsCategory; label: string }[] = [
+  { id: 'general', label: 'General News' },
+  { id: 'entertainment', label: 'Entertainment' },
+  { id: 'sports', label: 'Sports' },
+  { id: 'politics', label: 'Political News' },
+  { id: 'science', label: 'Science' },
+  { id: 'technology', label: 'Technology' }
+];
+
+// Language options
+const LANGUAGES: { value: Language; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'de', label: 'German (Deutsch)' }
+];
 
 export default function SettingsScreen() {
   const { isDark, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, updatePreferences } = useAuth();
   const router = useRouter();
+
+  // State for preferences modal
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>(user?.preferences?.language || 'en');
+  const [selectedCategories, setSelectedCategories] = useState<NewsCategory[]>(
+    user?.preferences?.categories || ['general']
+  );
+
+  // Toggle category selection
+  const toggleCategory = (category: NewsCategory) => {
+    if (selectedCategories.includes(category)) {
+      // Don't remove if it's the last selected category
+      if (selectedCategories.length > 1) {
+        setSelectedCategories(selectedCategories.filter(c => c !== category));
+      }
+    } else {
+      setSelectedCategories([...selectedCategories, category]);
+    }
+  };
+
+  // Save updated preferences
+  const savePreferences = async () => {
+    if (user) {
+      await updatePreferences(selectedLanguage, selectedCategories);
+      setShowPreferencesModal(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -48,20 +91,23 @@ export default function SettingsScreen() {
           <Switch value={isDark} onValueChange={toggleTheme} />
         </View>
 
+        <Pressable 
+          style={styles.setting}
+          onPress={() => setShowPreferencesModal(true)}
+        >
+          <View style={styles.settingInfo}>
+            <Globe size={24} color={isDark ? '#fff' : '#333'} />
+            <Text style={[styles.settingText, isDark && styles.darkText]}>News Preferences</Text>
+          </View>
+          <Edit size={20} color={isDark ? '#fff' : '#333'} />
+        </Pressable>
+
         <View style={styles.setting}>
           <View style={styles.settingInfo}>
             <Bell size={24} color={isDark ? '#fff' : '#333'} />
             <Text style={[styles.settingText, isDark && styles.darkText]}>Push Notifications</Text>
           </View>
           <Switch value={true} onValueChange={() => {}} />
-        </View>
-
-        <View style={styles.setting}>
-          <View style={styles.settingInfo}>
-            <Globe size={24} color={isDark ? '#fff' : '#333'} />
-            <Text style={[styles.settingText, isDark && styles.darkText]}>Region</Text>
-          </View>
-          <Text style={[styles.settingValue, isDark && { color: '#60a5fa' }]}>United States</Text>
         </View>
       </View>
 
@@ -94,6 +140,83 @@ export default function SettingsScreen() {
       <View style={styles.footer}>
         <Text style={[styles.version, isDark && styles.darkText]}>Version 1.0.0</Text>
       </View>
+
+      {/* Preferences Modal */}
+      <Modal
+        visible={showPreferencesModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPreferencesModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark && styles.darkModalContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDark && styles.darkText]}>News Preferences</Text>
+              <TouchableOpacity onPress={() => setShowPreferencesModal(false)}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Language Selector */}
+            <View style={styles.preferencesSection}>
+              <Text style={[styles.preferenceTitle, isDark && styles.darkText]}>Language</Text>
+              <View style={styles.languageOptions}>
+                {LANGUAGES.map((item) => (
+                  <TouchableOpacity 
+                    key={item.value}
+                    style={[
+                      styles.languageOption, 
+                      selectedLanguage === item.value && styles.selectedLanguage,
+                      isDark && styles.darkLanguageOption,
+                      isDark && selectedLanguage === item.value && styles.darkSelectedLanguage
+                    ]}
+                    onPress={() => setSelectedLanguage(item.value)}
+                  >
+                    <Text style={[
+                      styles.languageText,
+                      selectedLanguage === item.value && styles.selectedLanguageText,
+                      isDark && styles.darkText
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Categories */}
+            <View style={styles.preferencesSection}>
+              <Text style={[styles.preferenceTitle, isDark && styles.darkText]}>News Categories</Text>
+              <Text style={[styles.preferenceSubtitle, isDark && styles.darkSubtitle]}>
+                Select the categories you want to see
+              </Text>
+              
+              <View style={styles.categoriesContainer}>
+                {CATEGORIES.map((category) => (
+                  <View key={category.id} style={styles.categoryRow}>
+                    <Text style={[styles.categoryText, isDark && styles.darkText]}>
+                      {category.label}
+                    </Text>
+                    <Switch
+                      value={selectedCategories.includes(category.id)}
+                      onValueChange={() => toggleCategory(category.id)}
+                      trackColor={{ false: '#767577', true: '#007AFF' }}
+                      thumbColor={selectedCategories.includes(category.id) ? '#fff' : '#f4f3f4'}
+                    />
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.saveButton}
+              onPress={savePreferences}
+            >
+              <Text style={styles.saveButtonText}>Save Preferences</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -219,5 +342,120 @@ const styles = StyleSheet.create({
   },
   darkText: {
     color: '#fff',
+  },
+  darkSubtitle: {
+    color: '#aaa',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  darkModalContent: {
+    backgroundColor: '#111',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 18,
+    color: '#000',
+  },
+  modalClose: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: '#007AFF',
+  },
+  preferencesSection: {
+    marginTop: 20,
+  },
+  preferenceTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 18,
+    color: '#000',
+    marginBottom: 12,
+  },
+  preferenceSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  languageOptions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+  },
+  languageOption: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flex: 1,
+    alignItems: 'center',
+  },
+  darkLanguageOption: {
+    borderColor: '#333',
+  },
+  selectedLanguage: {
+    backgroundColor: '#f0f8ff',
+    borderColor: '#007AFF',
+  },
+  darkSelectedLanguage: {
+    backgroundColor: '#0d2137',
+    borderColor: '#007AFF',
+  },
+  languageText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+    color: '#333',
+  },
+  selectedLanguageText: {
+    color: '#007AFF',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  categoriesContainer: {
+    marginTop: 8,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  categoryText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+    color: '#333',
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
   },
 });
