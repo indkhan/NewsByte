@@ -5,6 +5,7 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { UserActionsProvider } from './context/UserActionsContext';
 
 // Handle authentication routing
 function AuthRouteGuard({ children }: { children: React.ReactNode }) {
@@ -62,9 +63,11 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AuthRouteGuard>
-          <RootLayoutNav />
-        </AuthRouteGuard>
+        <UserActionsProvider>
+          <AuthRouteGuard>
+            <RootLayoutNav />
+          </AuthRouteGuard>
+        </UserActionsProvider>
       </AuthProvider>
     </ThemeProvider>
   );

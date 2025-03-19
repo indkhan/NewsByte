@@ -1,20 +1,62 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, Pressable } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TextInput, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useTheme } from './context/ThemeContext';
+import { useUserActions } from './context/UserActionsContext';
+import { useAuth } from './context/AuthContext';
 import { Send } from 'lucide-react-native';
-
-const DUMMY_COMMENTS = [
-  { id: '1', user: 'John Doe', text: 'Great article!', time: '2h ago' },
-  { id: '2', user: 'Jane Smith', text: 'Very informative, thanks for sharing.', time: '1h ago' },
-  { id: '3', user: 'Mike Johnson', text: 'Interesting perspective.', time: '30m ago' },
-];
 
 export default function CommentsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isDark } = useTheme();
+  const { user } = useAuth();
+  const router = useRouter();
+  const { getArticleComments, addComment } = useUserActions();
+  
+  const [comments, setComments] = useState(getArticleComments(id || '0'));
+  const [commentText, setCommentText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const renderComment = ({ item }: { item: typeof DUMMY_COMMENTS[0] }) => (
+  // Reload comments when they change
+  useEffect(() => {
+    setComments(getArticleComments(id || '0'));
+  }, [id, getArticleComments]);
+
+  const handleSubmitComment = async () => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to add comments', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => router.push('/login' as any) }
+      ]);
+      return;
+    }
+
+    if (!commentText.trim()) {
+      Alert.alert('Error', 'Please enter a comment');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const success = await addComment(id || '0', commentText);
+      
+      if (success) {
+        // Update local comments state
+        setComments(getArticleComments(id || '0'));
+        setCommentText(''); // Clear input
+      } else {
+        Alert.alert('Error', 'Failed to add comment');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderComment = ({ item }: { item: ReturnType<typeof getArticleComments>[0] }) => (
     <View style={[styles.commentContainer, isDark && styles.darkCommentContainer]}>
       <Text style={[styles.username, isDark && styles.darkText]}>{item.user}</Text>
       <Text style={[styles.commentText, isDark && styles.darkText]}>{item.text}</Text>
@@ -35,22 +77,41 @@ export default function CommentsScreen() {
         }}
       />
       <View style={[styles.container, isDark && styles.darkContainer]}>
-        <FlatList
-          data={DUMMY_COMMENTS}
-          renderItem={renderComment}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.commentsList}
-        />
+        {comments.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyText, isDark && styles.darkText]}>
+              No comments yet. Be the first to comment!
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={comments}
+            renderItem={renderComment}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.commentsList}
+          />
+        )}
         
         <View style={[styles.inputContainer, isDark && styles.darkInputContainer]}>
           <TextInput
             placeholder="Add a comment..."
             placeholderTextColor={isDark ? '#666' : '#999'}
             style={[styles.input, isDark && styles.darkInput]}
+            value={commentText}
+            onChangeText={setCommentText}
+            editable={!isSubmitting}
           />
-          <Pressable style={styles.sendButton}>
-            <Send size={24} color={isDark ? '#fff' : '#000'} />
-          </Pressable>
+          {isSubmitting ? (
+            <ActivityIndicator color={isDark ? '#fff' : '#007AFF'} />
+          ) : (
+            <Pressable 
+              style={[styles.sendButton, !commentText.trim() && styles.disabledButton]} 
+              onPress={handleSubmitComment}
+              disabled={!commentText.trim()}
+            >
+              <Send size={24} color={!commentText.trim() ? '#999' : (isDark ? '#fff' : '#007AFF')} />
+            </Pressable>
+          )}
         </View>
       </View>
     </>
@@ -100,6 +161,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     backgroundColor: '#fff',
+    alignItems: 'center',
   },
   darkInputContainer: {
     backgroundColor: '#111',
@@ -124,7 +186,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  disabledButton: {
+    opacity: 0.5,
+  },
   darkText: {
     color: '#fff',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });
