@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, Pressable, Share as ReactNativeShare, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, Pressable, Share as ReactNativeShare, Alert, TouchableOpacity, Platform, TextInput } from 'react-native';
 import { format } from 'date-fns';
 import { Article } from '@/types/news';
 import { truncateText } from '@/utils/textUtils';
@@ -33,7 +33,8 @@ export function NewsCard({ article, index }: NewsCardProps) {
     toggleBookmark, 
     isLiked, 
     isBookmarked,
-    getArticleComments
+    getArticleComments,
+    addComment
   } = useUserActions();
 
   // Local state for UI
@@ -46,6 +47,10 @@ export function NewsCard({ article, index }: NewsCardProps) {
   const heartScale = useSharedValue(1);
   const bookmarkScale = useSharedValue(1);
   const contentOpacity = useSharedValue(1);
+
+  // New state for comment input
+  const [commentInputVisible, setCommentInputVisible] = useState(false);
+  const [newComment, setNewComment] = useState('');
 
   // Format article info
   const formattedDate = format(new Date(article.publishedAt), 'MMM dd, yyyy');
@@ -199,6 +204,15 @@ export function NewsCard({ article, index }: NewsCardProps) {
     opacity: contentOpacity.value
   }));
 
+  // Handle comment submission
+  const handleCommentSubmit = async () => {
+    if (newComment.trim()) {
+      await addComment(article.url, newComment);
+      setNewComment('');
+      setCommentInputVisible(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { height: CARD_HEIGHT }]}>
       {/* Background Image with Gradient Overlay */}
@@ -257,66 +271,36 @@ export function NewsCard({ article, index }: NewsCardProps) {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Action Buttons */}
+      {/* Action Buttons - Vertical Layout */}
       <View style={styles.actionsContainer}>
-        <Pressable 
-          onPress={handleLike} 
-          style={styles.actionButton}
-        >
-          <Animated.View style={[
-            styles.actionIconContainer, 
-            heartAnimatedStyle,
-            liked && styles.likedIconContainer
-          ]}>
-            <Heart 
-              size={20} 
-              color={liked ? '#fff' : (isDark ? '#fff' : '#333')}
-              fill={liked ? '#ff2d55' : 'transparent'}
-            />
-          </Animated.View>
-          <Text style={[styles.actionCount, isDark && styles.darkSubtleText]}>
-            {likes}
-          </Text>
+        <Pressable onPress={handleLike} style={styles.actionButton}>
+          <Heart size={36} color={liked ? '#ff2d55' : (isDark ? '#fff' : '#333')} />
+          <Text style={styles.likeCount}>{likes}</Text>
         </Pressable>
-
-        <Pressable 
-          style={styles.actionButton}
-          onPress={handleComment}
-        >
-          <View style={styles.actionIconContainer}>
-            <MessageCircle size={20} color={isDark ? '#fff' : '#333'} />
-          </View>
-          <Text style={[styles.actionCount, isDark && styles.darkSubtleText]}>
-            {comments}
-          </Text>
+        <Pressable onPress={handleComment} style={styles.actionButton}>
+          <MessageCircle size={36} color={isDark ? '#fff' : '#333'} />
         </Pressable>
-
-        <Pressable 
-          onPress={handleShare} 
-          style={styles.actionButton}
-        >
-          <View style={styles.actionIconContainer}>
-            <Share2 size={20} color={isDark ? '#fff' : '#333'} />
-          </View>
+        <Pressable onPress={handleShare} style={styles.actionButton}>
+          <Share2 size={36} color={isDark ? '#fff' : '#333'} />
         </Pressable>
-
-        <Pressable 
-          onPress={handleBookmark} 
-          style={styles.actionButton}
-        >
-          <Animated.View style={[
-            styles.actionIconContainer, 
-            bookmarkAnimatedStyle, 
-            bookmarked && styles.bookmarkedIconContainer
-          ]}>
-            <Bookmark 
-              size={20} 
-              color={bookmarked ? '#fff' : (isDark ? '#fff' : '#333')}
-              fill={bookmarked ? '#007AFF' : 'transparent'}
-            />
-          </Animated.View>
+        <Pressable onPress={handleBookmark} style={styles.actionButton}>
+          <Bookmark size={36} color={bookmarked ? '#007AFF' : (isDark ? '#fff' : '#333')} />
         </Pressable>
       </View>
+
+      {/* Comment Input Field */}
+      {commentInputVisible && (
+        <View style={styles.commentInputContainer}>
+          <TextInput
+            style={styles.commentInput}
+            placeholder="Write a comment..."
+            placeholderTextColor={isDark ? '#aaa' : '#999'}
+            value={newComment}
+            onChangeText={setNewComment}
+            onSubmitEditing={handleCommentSubmit}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -409,44 +393,42 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     position: 'absolute',
-    bottom: 60,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 24,
-    zIndex: 10,
+    right: 10,
+    bottom: 10,
+    flexDirection: 'column',
+    alignItems: 'center',
   },
   actionButton: {
+    padding: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
   },
-  actionIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
+  likeCount: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+    color: '#fff',
+    marginLeft: 4,
+  },
+  commentInputContainer: {
+    position: 'absolute',
+    bottom: 60,
+    left: 20,
+    right: 20,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  likedIconContainer: {
-    backgroundColor: '#ff2d55',
-  },
-  bookmarkedIconContainer: {
-    backgroundColor: '#007AFF',
-  },
-  actionCount: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 12,
-    color: '#555',
-    marginTop: 4,
+  commentInput: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
   },
   darkText: {
     color: '#fff',
