@@ -8,10 +8,11 @@ import { ChevronDown, ChevronUp } from 'lucide-react-native';
 // News category options with labels
 const CATEGORIES: { id: NewsCategory; label: string }[] = [
   { id: 'general', label: 'General News' },
+  { id: 'business', label: 'Business' },
   { id: 'entertainment', label: 'Entertainment' },
-  { id: 'sports', label: 'Sports' },
-  { id: 'politics', label: 'Political News' },
+  { id: 'health', label: 'Health & Wellness' },
   { id: 'science', label: 'Science' },
+  { id: 'sports', label: 'Sports' },
   { id: 'technology', label: 'Technology' }
 ];
 
@@ -44,7 +45,7 @@ export default function SignupScreen() {
     if (selectedCategories.includes(category)) {
       // Don't remove if it's the last selected category
       if (selectedCategories.length > 1) {
-        setSelectedCategories(selectedCategories.filter(c => c !== category));
+        setSelectedCategories(selectedCategories.filter((c: NewsCategory) => c !== category));
       }
     } else {
       setSelectedCategories([...selectedCategories, category]);

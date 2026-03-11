@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Linking, Alert, ActivityIndicator } from 'react-native';
 import { NewsCard } from '@/components/NewsCard';
 import { Article } from '@/types/news';
 import axios from 'axios';
@@ -8,113 +8,14 @@ import { useAuth, NewsCategory } from '@/app/context/AuthContext';
 import Swiper from 'react-native-swiper';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react-native';
 
-// Sample news data for development
-const SAMPLE_NEWS = [
-  {
-    title: "The Future of Technology",
-    description: "Exploring the latest trends in technology and their impact on our daily lives.",
-    content: "Technology continues to evolve at an unprecedented pace, transforming how we live, work, and interact with one another...",
-    url: "https://example.com/tech-future",
-    urlToImage: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&q=80",
-    publishedAt: "2024-02-20T09:00:00Z",
-    source: { name: "Tech Daily" }
-  },
-  {
-    title: "Sustainable Living in Modern Cities",
-    description: "How urban areas are adapting to environmental challenges.",
-    content: "Cities around the world are implementing innovative solutions to reduce their environmental impact...",
-    url: "https://example.com/sustainable-cities",
-    urlToImage: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&q=80",
-    publishedAt: "2024-02-20T10:00:00Z",
-    source: { name: "Environment Today" }
-  },
-  {
-    title: "The Rise of Digital Art",
-    description: "How technology is revolutionizing artistic expression.",
-    content: "Digital artists are pushing the boundaries of creativity using new tools and platforms...",
-    url: "https://example.com/digital-art",
-    urlToImage: "https://images.unsplash.com/photo-1547826039-bfc35e0f1ea8?w=800&q=80",
-    publishedAt: "2024-02-20T11:00:00Z",
-    source: { name: "Art & Culture" }
-  }
-];
 
-// Sample news by category for development (when API is not available)
-const SAMPLE_NEWS_BY_CATEGORY: Record<NewsCategory, Article[]> = {
-  general: [
-    {
-      title: "Global Summit Addresses Climate Change",
-      description: "Leaders from around the world gather to discuss environmental policies.",
-      content: "The annual Global Climate Summit brought together world leaders to address the pressing issues of climate change...",
-      url: "https://example.com/climate-summit",
-      urlToImage: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=800&q=80",
-      publishedAt: "2024-02-21T09:00:00Z",
-      source: { name: "World News" }
-    }
-  ],
-  entertainment: [
-    {
-      title: "New Blockbuster Movie Breaks Box Office Records",
-      description: "The latest superhero film becomes the highest-grossing movie of the year.",
-      content: "Hollywood is celebrating as the new superhero epic has shattered box office records worldwide...",
-      url: "https://example.com/movie-record",
-      urlToImage: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800&q=80",
-      publishedAt: "2024-02-20T15:30:00Z",
-      source: { name: "Entertainment Weekly" }
-    }
-  ],
-  sports: [
-    {
-      title: "Championship Finals Set to Begin Next Week",
-      description: "The two top teams prepare for the ultimate showdown.",
-      content: "After a season of intense competition, the championship finals are set to begin next week between the two top-ranked teams...",
-      url: "https://example.com/championship-finals",
-      urlToImage: "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?w=800&q=80",
-      publishedAt: "2024-02-22T12:45:00Z",
-      source: { name: "Sports Center" }
-    }
-  ],
-  politics: [
-    {
-      title: "Key Legislation Passes in Parliament",
-      description: "Lawmakers approve historic bill after months of debate.",
-      content: "After months of intense debate and negotiation, parliament has finally passed the landmark legislation that will reshape the nation's approach to...",
-      url: "https://example.com/legislation-passes",
-      urlToImage: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&q=80",
-      publishedAt: "2024-02-19T14:20:00Z",
-      source: { name: "Political Times" }
-    }
-  ],
-  science: [
-    {
-      title: "Scientists Discover New Species in Deep Ocean",
-      description: "Researchers document previously unknown marine life in deep-sea expedition.",
-      content: "Marine biologists have discovered several new species during a deep-sea expedition to unexplored ocean trenches...",
-      url: "https://example.com/ocean-discovery",
-      urlToImage: "https://images.unsplash.com/photo-1566731855570-b3a97a486b9c?w=800&q=80",
-      publishedAt: "2024-02-18T10:15:00Z",
-      source: { name: "Science Daily" }
-    }
-  ],
-  technology: [
-    {
-      title: "Revolutionary AI System Developed for Medical Diagnostics",
-      description: "New artificial intelligence platform shows promising results in early disease detection.",
-      content: "A team of researchers has developed a revolutionary AI system that can detect early signs of multiple diseases with unprecedented accuracy...",
-      url: "https://example.com/ai-medical",
-      urlToImage: "https://images.unsplash.com/photo-1558346490-a72e53ae2d4f?w=800&q=80",
-      publishedAt: "2024-02-21T08:30:00Z",
-      source: { name: "Tech Innovations" }
-    }
-  ]
-};
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { isDark } = useTheme();
   const { user } = useAuth();
-  const [articles, setArticles] = useState<Article[]>(SAMPLE_NEWS);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -124,34 +25,45 @@ export default function HomeScreen() {
     try {
       if (user?.preferences) {
         const { language, categories } = user.preferences;
+        const country = language === 'en' ? 'us' : 'de';
         
-        // Use this for actual API call when you have an API key
-        // const response = await axios.get(
-        //   `https://newsapi.org/v2/top-headlines?country=${language === 'en' ? 'us' : 'de'}&category=${categories[0]}&apiKey=${process.env.EXPO_PUBLIC_NEWS_API_KEY}`
-        // );
-        // setArticles(response.data.articles);
-        
-        // For development, use sample data based on user preferences
-        let preferredNews: Article[] = [];
-        
-        // Collect articles for each selected category
-        categories.forEach(category => {
-          preferredNews = [...preferredNews, ...SAMPLE_NEWS_BY_CATEGORY[category]];
-        });
-        
-        // If no preferred news found, use general news
-        if (preferredNews.length === 0) {
-          setArticles(SAMPLE_NEWS);
-        } else {
-          setArticles(preferredNews);
+        try {
+          // Fetch articles for each selected category in parallel
+          // We use the saurav.tech mirror which doesn't require an API key and is CORS-friendly
+          const fetchPromises = categories.map((category: NewsCategory) => 
+            axios.get(`https://saurav.tech/NewsAPI/top-headlines/category/${category}/${country}.json`)
+          );
+          
+          const responses = await Promise.all(fetchPromises);
+          let allArticles: Article[] = [];
+          
+          responses.forEach((response: any) => {
+            if (response.data && response.data.articles) {
+              allArticles = [...allArticles, ...response.data.articles];
+            }
+          });
+          
+          // Randomize or sort articles if needed, for now just merge
+          if (allArticles.length > 0) {
+            // Remove duplicates based on URL
+            const uniqueArticles = allArticles.filter((article: Article, index: number, self: Article[]) =>
+              index === self.findIndex((a: Article) => a.url === article.url)
+            );
+            setArticles(uniqueArticles);
+          } else {
+            setArticles([]);
+          }
+        } catch (apiError) {
+          console.error('API call failed:', apiError);
+          setArticles([]);
         }
       } else {
-        // Fallback to sample news if no preferences
-        setArticles(SAMPLE_NEWS);
+        // Fallback to empty news if no preferences or not logged in
+        setArticles([]);
       }
     } catch (error) {
-      console.error('Error fetching news:', error);
-      setArticles(SAMPLE_NEWS);
+      console.error('Error in fetchNews:', error);
+      setArticles([]);
     } finally {
       setIsLoading(false);
     }
@@ -180,13 +92,33 @@ export default function HomeScreen() {
     setCurrentIndex(index);
   };
 
+  if (isLoading) {
+    return (
+      <View style={[styles.container, isDark && styles.darkContainer, styles.centered]}>
+        <ActivityIndicator size="large" color={isDark ? "#fff" : "#007AFF"} />
+        <Text style={[styles.loadingText, isDark && styles.darkText]}>Fetching latest news...</Text>
+      </View>
+    );
+  }
+
+  if (articles.length === 0) {
+    return (
+      <View style={[styles.container, isDark && styles.darkContainer, styles.centered]}>
+        <Text style={[styles.emptyText, isDark && styles.darkText]}>No articles found for your preferences.</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchNews}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, isDark && styles.darkContainer]}>
       {user?.preferences && (
         <View style={[styles.preferencesBar, isDark && styles.darkPreferencesBar]}>
           <Text style={[styles.preferencesText, isDark && styles.darkText]}>
             Showing news in {user.preferences.language === 'en' ? 'English' : 'German'} for{' '}
-            {user.preferences.categories.map((cat, index) => (
+            {user.preferences.categories.map((cat: NewsCategory, index: number) => (
               <Text key={cat}>
                 {index > 0 ? ', ' : ''}
                 {cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -209,7 +141,7 @@ export default function HomeScreen() {
           dotColor={isDark ? "#555" : "#ccc"}
           activeDotColor={isDark ? "#fff" : "#007AFF"}
         >
-          {articles.map((article, index) => (
+          {articles.map((article: Article, index: number) => (
             <View key={article.url || index} style={styles.slide}>
               <NewsCard article={article} index={index} />
             </View>
@@ -411,5 +343,34 @@ const styles = StyleSheet.create({
   darkInstructionText: {
     color: '#aaa',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    paddingHorizontal: 40,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
   }
 });

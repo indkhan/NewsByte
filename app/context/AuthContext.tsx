@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // News category types
-export type NewsCategory = 'general' | 'entertainment' | 'sports' | 'politics' | 'science' | 'technology';
+// News category types
+export type NewsCategory = 'general' | 'entertainment' | 'sports' | 'business' | 'health' | 'science' | 'technology';
 export type Language = 'en' | 'de';
 
 // User type definition

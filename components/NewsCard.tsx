@@ -40,7 +40,7 @@ export function NewsCard({ article, index }: NewsCardProps) {
   // Local state for UI
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
-  const [likes, setLikes] = useState(Math.floor(Math.random() * 1000));
+  const [likes, setLikes] = useState(0);
   const [comments, setComments] = useState(0);
   
   // Animated values
